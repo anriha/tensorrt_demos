@@ -4,6 +4,7 @@ This script is for evaluating mAP (accuracy) of YOLO models.
 """
 
 
+import time
 import os
 import sys
 import json
@@ -22,9 +23,11 @@ from utils.yolo_classes import yolo_cls_to_ssd
 
 
 HOME = os.environ['HOME']
-VAL_IMGS_DIR = HOME + '/data/coco/images/val2017'
-VAL_ANNOTATIONS = HOME + '/data/coco/annotations/instances_val2017.json'
+VAL_IMGS_DIR = "/mnt/delta/work/projects/coco/val2017"
+VAL_ANNOTATIONS = '/mnt/delta/work/projects/coco/annotations/instances_val2017.json'
 
+time_acc = 0
+time_count = 0
 
 def parse_args():
     """Parse input arguments."""
@@ -64,11 +67,16 @@ def check_args(args):
 
 def generate_results(trt_yolo, imgs_dir, jpgs, results_file, non_coco):
     """Run detection on each jpg and write results to file."""
+    global time_count, time_acc
     results = []
     for jpg in progressbar(jpgs):
         img = cv2.imread(os.path.join(imgs_dir, jpg))
         image_id = int(jpg.split('.')[0].split('_')[-1])
+        start_time = time.time()
         boxes, confs, clss = trt_yolo.detect(img, conf_th=1e-2)
+        elapsed_time = time.time() - start_time
+        time_count += 1
+        time_acc += elapsed_time
         for box, conf, cls in zip(boxes, confs, clss):
             x = float(box[0])
             y = float(box[1])
@@ -103,7 +111,7 @@ def main():
 
     trt_yolo = TrtYOLO(args.model, (h, w), args.category_num, args.letter_box)
 
-    jpgs = [j for j in os.listdir(args.imgs_dir) if j.endswith('.jpg')]
+    jpgs = [j for j in os.listdir(args.imgs_dir) if j.endswith('.jpg')][:1000]
     generate_results(trt_yolo, args.imgs_dir, jpgs, results_file,
                      non_coco=args.non_coco)
 
@@ -117,6 +125,11 @@ def main():
     cocoEval.evaluate()
     cocoEval.accumulate()
     cocoEval.summarize()
+    global time_acc, time_count
+    print(time_acc)
+    print(time_count)
+    print(time_acc / time_count)
+    print(time_count / time_acc)
 
 
 if __name__ == '__main__':

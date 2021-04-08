@@ -808,14 +808,16 @@ class GraphBuilderONNX(object):
         scales_name = upsample_params.generate_param_name()
         # For ONNX opset >= 9, the Upsample node takes the scales array
         # as an input.
+        inputs.append("")
         inputs.append(scales_name)
 
         upsample_node = helper.make_node(
-            'Upsample',
+            'Resize',
             mode='nearest',
             inputs=inputs,
             outputs=[layer_name],
             name=layer_name,
+            nearest_mode="floor"
         )
         self._nodes.append(upsample_node)
         self.param_dict[layer_name] = upsample_params
